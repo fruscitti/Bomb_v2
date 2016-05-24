@@ -6,7 +6,7 @@
 /*
  * Dispatch
  */
-typedef enum B_STATES { ST_NORMAL, ST_MOVED, ST_CABLE, ST_DISARM, ST_BANG } b_state;
+typedef enum B_STATES { ST_NORMAL, ST_MOVED, ST_CABLE, ST_DISARM, ST_BANG, ST_RESET } b_state;
 
 typedef struct STATE_INFO state_info;
 
@@ -45,6 +45,10 @@ struct STATE_INFO {
 
   /* Bang */
   byte bang_state;
+
+  /* Reset */
+  long reset_pressed_time;
+  int  reset_time;
 };
 
 void transition_to(b_state, state_info * info);
@@ -371,6 +375,19 @@ void st_bang_quit(state_info * info) {
 
 }
 
+/*
+ * Normal state
+ */
+void st_reset_init(state_info * info) {
+  info->reset_pressed_time = millis();
+  info->reset_time = 3600;
+}
+
+void st_reset_handle(state_info * info){
+}
+
+void st_reset_quit(state_info * info) {
+}
 
 dispatch_info dispatch_info_table[] = {
   { ST_NORMAL, st_normal_init, st_normal_handle, st_normal_quit, (state_pre_check[]){check_alarm, check_bang, check_disarm, check_moved, check_cable, NULL} },
