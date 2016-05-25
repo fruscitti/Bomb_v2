@@ -1,6 +1,7 @@
 #include "LedControl.h"
 
 int blinkLedPin = 13;
+int buzz_pin = 50;
 
 LedControl lc1 = LedControl(49,53,45,4);
 
@@ -28,7 +29,11 @@ void fled_blink(int veces, int espera) {
 }
 
 void fbuzz_short() {
-  //tone(50, 2000, 25);
+  //tone(buzz_pin, 2000, 25);
+}
+
+void fbuzz_off() {
+  noTone(buzz_pin);
 }
 
 void fled_display_time(int t) {

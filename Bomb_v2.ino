@@ -2,6 +2,7 @@
 /*
  * Parametros
  */
+const int reset_pin = 4;
 
 /*
  * Dispatch
@@ -376,14 +377,63 @@ void st_bang_quit(state_info * info) {
 }
 
 /*
- * Normal state
+ * Reset state
  */
+int reset_last_state = HIGH;
+long reset_last_debounced_time;
+int reset_state = HIGH;
+
+/* Precondiciones a chequear */
+bool check_reset (state_info * info) {
+  //return false;
+  if(fread_reset()) {
+    transition_to(ST_RESET, info);
+    return true;
+  }
+  return false;
+}
+
+bool fread_reset() {
+  //Serial.println("readc");
+  bool changed = false;
+  int c_val = digitalRead(reset_pin);
+  if (c_val != reset_last_state) {
+    reset_last_debounced_time = millis();
+  }
+
+  if ((millis() - reset_last_debounced_time) > DEBOUNCE_DELAY) {
+    if (c_val != reset_last_state) {
+      reset_state = c_val;
+      changed = true;
+    }
+  }
+  reset_last_state = c_val;
+  return !reset_state;
+}
+
 void st_reset_init(state_info * info) {
   info->reset_pressed_time = millis();
   info->reset_time = 3600;
+  fbuzz_off();
+  fclock_reset(info->reset_time);
+  fled_display_time(fclock_ticks());
 }
 
 void st_reset_handle(state_info * info){
+  // cada segundo bajo 5 minutos
+  if (!fread_reset()) {
+    reset();
+    transition_to(ST_NORMAL, info);
+  }
+
+  long m = millis();
+  if ((m - info->reset_time) > 1000) {
+    info->reset_pressed_time = m;
+    info->reset_time -= 600;
+    if (info->reset_time < 60) info->reset_time = 60;
+    fclock_reset(info->reset_time);
+    fled_display_time(fclock_ticks());
+  }
 }
 
 void st_reset_quit(state_info * info) {
@@ -410,6 +460,19 @@ void transition_to(b_state state, state_info * info) {
 }
 
 state_info info;
+
+void reset() {
+  info.moved_times = 0;
+  info.cable_number = 0;
+  cable_setup();
+
+  //fled_setup(13);
+  //fclock_setup();
+  fled_display_time(fclock_ticks());
+  
+  faccel_setup(A0, A1, A2, 5);
+  faccel_adjust();
+}
 
 void setup() {
   Serial.begin(9600);

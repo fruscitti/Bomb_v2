@@ -35,6 +35,12 @@ void fclock_speed(int x) {
   OCR4A = TICKS_BASE / x; 
 }
 
+void fclock_reset(int ct) {
+  clock_tick_change = false;
+  clock_ticks = ct;
+  clock_ticks_dec = 10;
+}
+
 void fclock_setup() {
   clock_tick_change = false;
   clock_ticks = 3600;
