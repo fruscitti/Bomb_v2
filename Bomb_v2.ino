@@ -2,7 +2,7 @@
 /*
  * Parametros
  */
-const int reset_pin = 4;
+const int reset_pin = 19;
 
 /*
  * Dispatch
@@ -142,7 +142,8 @@ void st_moved_quit(state_info * info) {
 
 const int cable_leds_pins[] = {7, 14, 5, 4, 3, 15}; // Leds
 const int cable_disarm[] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 }; // Pares
-#define CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
+#define CABLE_COUNT 2
+#define _CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
 int  cable_disarm_state[CABLE_COUNT];
 int  cable_disarm_last_state[CABLE_COUNT];
 long cable_last_debounced_time[CABLE_COUNT];
@@ -158,6 +159,7 @@ void cable_setup() {
   for(int ii=0; ii<CABLE_COUNT/2; ii++) {
     byte p1 = digitalRead(cable_disarm[ii*2]);
     byte p2 = digitalRead(cable_disarm[ii*2+1]);
+    /*
     Serial.print("Cable: ");
     Serial.print(cable_disarm[ii*2]);
     Serial.print(": ");
@@ -166,6 +168,7 @@ void cable_setup() {
     Serial.print(cable_disarm[ii*2+1]);
     Serial.print(": ");
     Serial.println(p2);
+    */
     if (p1 == LOW && p2 == LOW)
       digitalWrite(cable_leds_pins[ii], LOW); // ON
   }
@@ -213,11 +216,9 @@ bool fread_cables() {
       }
 
       if ((millis() - cable_last_debounced_time[ii]) > DEBOUNCE_DELAY) {
-        if (c_val != cable_disarm_state[ii]) {
+        if (c_val == cable_disarm_last_state[ii] && c_val != cable_disarm_state[ii]) { //!!! Verrrr
           cable_disarm_state[ii] = c_val;
           changed = true;
-          Serial.print("Cambio el cable: ");
-          Serial.println(cable_disarm[ii]);
         }
       }
       cable_disarm_last_state[ii] = c_val;
@@ -241,7 +242,7 @@ void st_cable_init(state_info * info) {
   info->cable_ooo = false;
   fclock_speed(5); 
 
-  Serial.println("Cable init");
+  //Serial.println("Cable init");
 
   int ii;
   for (ii=CABLE_COUNT-1; ii>=0; ii--) {
@@ -397,12 +398,13 @@ bool fread_reset() {
   //Serial.println("readc");
   bool changed = false;
   int c_val = digitalRead(reset_pin);
+  //Serial.println(c_val);
   if (c_val != reset_last_state) {
     reset_last_debounced_time = millis();
   }
 
   if ((millis() - reset_last_debounced_time) > DEBOUNCE_DELAY) {
-    if (c_val != reset_last_state) {
+    if (c_val == reset_last_state) {
       reset_state = c_val;
       changed = true;
     }
@@ -424,10 +426,11 @@ void st_reset_handle(state_info * info){
   if (!fread_reset()) {
     reset();
     transition_to(ST_NORMAL, info);
+    return;
   }
 
   long m = millis();
-  if ((m - info->reset_time) > 1000) {
+  if ((m - info->reset_pressed_time) > 1000) {
     info->reset_pressed_time = m;
     info->reset_time -= 600;
     if (info->reset_time < 60) info->reset_time = 60;
@@ -437,14 +440,16 @@ void st_reset_handle(state_info * info){
 }
 
 void st_reset_quit(state_info * info) {
+  Serial.println(fclock_ticks());
 }
 
 dispatch_info dispatch_info_table[] = {
-  { ST_NORMAL, st_normal_init, st_normal_handle, st_normal_quit, (state_pre_check[]){check_alarm, check_bang, check_disarm, check_moved, check_cable, NULL} },
+  { ST_NORMAL, st_normal_init, st_normal_handle, st_normal_quit, (state_pre_check[]){check_reset, check_alarm, check_bang, check_disarm, check_moved, check_cable, check_reset, NULL} },
   { ST_MOVED , st_moved_init, st_moved_handle, st_moved_quit, (state_pre_check[]){check_bang, check_disarm, check_cable, NULL} },
   { ST_CABLE , st_cable_init, st_cable_handle, st_cable_quit, (state_pre_check[]){check_bang, check_disarm, NULL} },
-  { ST_DISARM , st_disarm_init, st_disarm_handle, st_disarm_quit, (state_pre_check[]){NULL} },
-  { ST_BANG , st_bang_init, st_bang_handle, st_bang_quit, (state_pre_check[]){NULL} }
+  { ST_DISARM , st_disarm_init, st_disarm_handle, st_disarm_quit, (state_pre_check[]){check_reset, NULL} },
+  { ST_BANG , st_bang_init, st_bang_handle, st_bang_quit, (state_pre_check[]){check_reset, NULL} },
+  { ST_RESET , st_reset_init, st_reset_handle, st_reset_quit, (state_pre_check[]){NULL} }
 };
 
 void transition_to(b_state state, state_info * info) {
@@ -476,6 +481,9 @@ void reset() {
 
 void setup() {
   Serial.begin(9600);
+
+  pinMode(reset_pin, INPUT_PULLUP);
+  
   Serial.println("Begin");
   info.prev_state  = ST_NORMAL;
   info.curr_state  = ST_NORMAL;
@@ -487,11 +495,13 @@ void setup() {
   cable_setup();
 
   fled_setup(13);
-  fclock_setup();
+  //fclock_setup();
   fled_display_time(fclock_ticks());
   
   faccel_setup(A0, A1, A2, 5);
   faccel_adjust();
+
+  fclock_setup();
 
   st_normal_init(&info);
 }
