@@ -142,8 +142,8 @@ void st_moved_quit(state_info * info) {
 
 const int cable_leds_pins[] = {7, 14, 5, 4, 3, 15}; // Leds
 const int cable_disarm[] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 }; // Pares
-#define CABLE_COUNT 2
-#define _CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
+//#define CABLE_COUNT 2
+#define CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
 int  cable_disarm_state[CABLE_COUNT];
 int  cable_disarm_last_state[CABLE_COUNT];
 long cable_last_debounced_time[CABLE_COUNT];
@@ -349,6 +349,7 @@ void st_disarm_quit(state_info * info) {
  */
 void st_bang_init(state_info * info) {
   info->bang_state = 0;
+  fbuzz_long();
 }
 
 void st_bang_handle(state_info * info){
@@ -374,7 +375,7 @@ void st_bang_handle(state_info * info){
 }
 
 void st_bang_quit(state_info * info) {
-
+  fbuzz_off();
 }
 
 /*
@@ -475,7 +476,7 @@ void reset() {
   //fclock_setup();
   fled_display_time(fclock_ticks());
   
-  faccel_setup(A0, A1, A2, 5);
+  faccel_setup(A0, A1, A2, 3);
   faccel_adjust();
 }
 
@@ -498,7 +499,7 @@ void setup() {
   //fclock_setup();
   fled_display_time(fclock_ticks());
   
-  faccel_setup(A0, A1, A2, 5);
+  faccel_setup(A0, A1, A2, 3);
   faccel_adjust();
 
   fclock_setup();
