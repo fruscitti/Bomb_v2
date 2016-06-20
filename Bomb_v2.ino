@@ -131,6 +131,7 @@ void st_moved_quit(state_info * info) {
   if (info->moved_times < (moved_mult_info_size - 1))
     info->moved_times++;
   fclock_speed(1);
+  faccel_readjust();
   //Serial.println("moved_quit");  
 }
 
@@ -476,7 +477,7 @@ void reset() {
   //fclock_setup();
   fled_display_time(fclock_ticks());
   
-  faccel_setup(A0, A1, A2, 3);
+  faccel_setup(A7, A1, A2, 5);
   faccel_adjust();
 }
 
@@ -499,12 +500,17 @@ void setup() {
   //fclock_setup();
   fled_display_time(fclock_ticks());
   
-  faccel_setup(A0, A1, A2, 3);
+  faccel_setup(A7, A1, A2, 5);
   faccel_adjust();
 
   fclock_setup();
 
   st_normal_init(&info);
+}
+
+void loop2() {
+  faccel_moved();
+  delay(500);
 }
 
 void loop() {

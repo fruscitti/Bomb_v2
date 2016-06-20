@@ -60,15 +60,48 @@ void faccel_adjust() {
   fled_blink(1, 500);
 }
 
+void faccel_readjust() {
+
+  // Inicializo
+  for(int jj=0; jj<3; jj++) {
+    for(int ii=0; ii<SAMPLES; ii++) {
+      samples[jj][ii] = 0;
+    }
+    total[jj] = 0;
+    promedio[jj] = 0;
+  }
+  sampleIndex = 0;
+
+  
+  // Promedio de SAMPLES mediciones de los 3 ejes
+  for (int ii=0; ii<SAMPLES; ii++) {
+    for(int jj=0; jj<3; jj++) {
+      total[jj] -= samples[jj][sampleIndex];
+      samples[jj][sampleIndex] = analogRead(aPins[jj]);
+      total[jj] += samples[jj][sampleIndex];
+      sampleIndex++;
+      if (sampleIndex >= SAMPLES)
+        sampleIndex = 0;
+    }
+    delay(2);
+  }
+
+  for(int jj=0; jj<3; jj++) {
+    promedio[jj] = total[jj] / SAMPLES;
+  }
+}
+
 // Lee n veces los valores y los promedia
 //
 void faccel_read(int n, int * results) {
   long totals[3] = {0L, 0L, 0L};
 
   for(int ii=0; ii<n; ii++) {
-    for(int jj=0; jj<3; jj++) 
-      totals[jj] += analogRead(aPins[jj]);
-    delay(1);
+    for(int jj=0; jj<3; jj++) {
+      int v =  analogRead(aPins[jj]);
+      totals[jj] += v;
+    }
+    delay(2);
   }
 
   for(int jj=0; jj<3; jj++) {
@@ -76,7 +109,7 @@ void faccel_read(int n, int * results) {
   }
 }
 
-#define NO_FACCEL_TRACE 1
+#define _FACCEL_TRACE 1
 
 bool faccel_moved() {
   int readings[] = {0, 0, 0};
