@@ -109,7 +109,7 @@ void faccel_read(int n, int * results) {
   }
 }
 
-#define _FACCEL_TRACE 1
+#define NO_FACCEL_TRACE 1
 
 bool faccel_moved() {
   int readings[] = {0, 0, 0};
