@@ -1,6 +1,7 @@
 const int TICKS_BASE = 25000; // 0.1 segs.
 
 bool clock_tick_change = false;
+bool clock_sep_change = false;
 int  clock_ticks = 3600;
 int  clock_ticks_dec = 10;
 
@@ -23,8 +24,11 @@ ISR(TIMER4_COMPA_vect) {          // timer compare interrupt service routine
   if(!--clock_ticks_dec) {
     if (clock_ticks) clock_ticks--;
     clock_tick_change = true;
+    clock_sep_change  = true;
     clock_ticks_dec = 10;
   }
+  if (clock_ticks_dec == 5)
+    clock_sep_change = true;
 }
 
 // x = 1  -> Normal
@@ -67,8 +71,16 @@ inline bool fclock_tick_changed() {
   return clock_tick_change;
 }
 
+inline bool fclock_sep_changed() {
+  return clock_sep_change;
+}
+
 inline void fclock_reset_tick_change() {
   clock_tick_change = false;
+}
+
+inline void fclock_reset_sep_change() {
+  clock_sep_change = false;
 }
 
 inline int fclock_ticks() {

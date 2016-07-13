@@ -1,9 +1,9 @@
 #include "LedControl.h"
 
 int blinkLedPin = 13;
-int buzz_pin = 50;
+int buzz_pin = 38;
 
-LedControl lc1 = LedControl(49,53,45,4);
+LedControl lc1 = LedControl(45,49,41,4);
 
 void fled_setup(int bled) {
   blinkLedPin = bled;
@@ -29,11 +29,11 @@ void fled_blink(int veces, int espera) {
 }
 
 void fbuzz_short() {
-  tone(buzz_pin, 2000, 25);
+  //tone(buzz_pin, 2000, 25);
 }
 
 void fbuzz_long() {
-  tone(buzz_pin, 2200);
+  //tone(buzz_pin, 2200);
 }
 
 void fbuzz_off() {
@@ -58,6 +58,9 @@ void fled_display_time(int t) {
   delay(5);  
 }
 
+void fled_display_sep(bool on) {
+  lc1.setSep2(on);
+}
 void fled_display_msg(const char * msg) {
   for(int ii=0; msg[ii] && ii<4; ii++) {
     lc1.clearDisplay(ii);

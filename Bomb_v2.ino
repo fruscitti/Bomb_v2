@@ -2,7 +2,7 @@
 /*
  * Parametros
  */
-const int reset_pin = 19;
+const int reset_pin = 36;
 
 /*
  * Dispatch
@@ -40,6 +40,7 @@ struct STATE_INFO {
   byte cable_cut;
   int  cable_ticks;
   bool cable_ooo;
+  int  cable_ooo_number;
 
   /* Disarm */
   byte disarm_state;
@@ -57,8 +58,17 @@ void transition_to(b_state, state_info * info);
 void display_time() {
    if (fclock_tick_changed()) {
     fclock_reset_tick_change();
+    fclock_reset_sep_change();
     fled_display_time(fclock_ticks());
+    fled_display_sep(false);
     fbuzz_short();
+  }
+}
+
+void display_sep() {
+  if (fclock_sep_changed()) {
+    fled_display_sep(true);
+    fclock_reset_sep_change();
   }
 }
 
@@ -93,6 +103,7 @@ void st_normal_init(state_info * info) {
 
 void st_normal_handle(state_info * info){
   //Serial.println("st_normal_handle");
+  display_sep();
   display_time();
 }
 
@@ -141,7 +152,7 @@ void st_moved_quit(state_info * info) {
 
 #define DEBOUNCE_DELAY 50
 
-const int cable_leds_pins[] = {7, 14, 5, 4, 3, 15}; // Leds
+const int cable_leds_pins[] = {16, 20, 17, 18, 19, 21}; // Leds
 const int cable_disarm[] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 }; // Pares
 //#define CABLE_COUNT 2
 #define CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
@@ -160,6 +171,7 @@ void cable_setup() {
   for(int ii=0; ii<CABLE_COUNT/2; ii++) {
     byte p1 = digitalRead(cable_disarm[ii*2]);
     byte p2 = digitalRead(cable_disarm[ii*2+1]);
+
     /*
     Serial.print("Cable: ");
     Serial.print(cable_disarm[ii*2]);
@@ -170,6 +182,7 @@ void cable_setup() {
     Serial.print(": ");
     Serial.println(p2);
     */
+    
     if (p1 == LOW && p2 == LOW)
       digitalWrite(cable_leds_pins[ii], LOW); // ON
   }
@@ -252,21 +265,21 @@ void st_cable_init(state_info * info) {
 
   if (ii/2 > info->cable_number) {
     info->cable_ooo = true;
-    Serial.println("Cable ooo");
+    info->cable_ooo_number = ii/2;
     return;
   }
 
   if (ii<0) {
     // No deberia pasar ...
-    Serial.println("Cable < 0 ...");
+    //Serial.println("Cable < 0 ...");
     info->cable_missing = -1;
     return;
   }
 
   info->cable_cut = ii;
   info->cable_missing = ii + (ii % 2 == 0 ? 1 : -1);
-  Serial.print("Cable Missing: ");
-  Serial.println(info->cable_missing);
+  //Serial.print("Cable Missing: ");
+  //Serial.println(info->cable_missing);
 }
 
 void st_cable_handle(state_info * info) {
@@ -351,6 +364,10 @@ void st_disarm_quit(state_info * info) {
 void st_bang_init(state_info * info) {
   info->bang_state = 0;
   fbuzz_long();
+  if (info->cable_ooo) {
+    for(int ii=0; ii<CABLE_COUNT/2; ii++) 
+      digitalWrite(cable_leds_pins[ii], !(info->cable_ooo_number == ii));
+  } 
 }
 
 void st_bang_handle(state_info * info){
@@ -442,7 +459,7 @@ void st_reset_handle(state_info * info){
 }
 
 void st_reset_quit(state_info * info) {
-  Serial.println(fclock_ticks());
+  //Serial.println(fclock_ticks());
 }
 
 dispatch_info dispatch_info_table[] = {
@@ -482,11 +499,11 @@ void reset() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   pinMode(reset_pin, INPUT_PULLUP);
-  
-  Serial.println("Begin");
+  radio_setup();
+  //Serial.println("Begin");
   info.prev_state  = ST_NORMAL;
   info.curr_state  = ST_NORMAL;
   
@@ -514,6 +531,7 @@ void loop2() {
 }
 
 void loop() {
+  handle_radio();
   for(int ii=0; dispatch_info_table[info.curr_state].pre_checks[ii]; ii++)
     if (dispatch_info_table[info.curr_state].pre_checks[ii](&info))
       return; //transision
