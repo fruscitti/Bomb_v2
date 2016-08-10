@@ -7,7 +7,7 @@ const int reset_pin = 36;
 /*
  * Dispatch
  */
-typedef enum B_STATES { ST_NORMAL, ST_MOVED, ST_CABLE, ST_DISARM, ST_BANG, ST_RESET } b_state;
+typedef enum B_STATES { ST_NORMAL, ST_MOVED, ST_CABLE, ST_DISARM, ST_BANG, ST_RESET, ST_WAIT } b_state;
 
 typedef struct STATE_INFO state_info;
 
@@ -153,7 +153,7 @@ void st_moved_quit(state_info * info) {
 #define DEBOUNCE_DELAY 50
 
 const int cable_leds_pins[] = {16, 20, 17, 18, 19, 21}; // Leds
-const int cable_disarm[] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33 }; // Pares
+const int cable_disarm[] = { 22, 23, 24, 25, 28, 29, 26, 27, 30, 31, 32, 33 }; // Pares
 //#define CABLE_COUNT 2
 #define CABLE_COUNT (sizeof(cable_disarm)/sizeof(cable_disarm[0]))
 int  cable_disarm_state[CABLE_COUNT];
@@ -443,8 +443,10 @@ void st_reset_init(state_info * info) {
 void st_reset_handle(state_info * info){
   // cada segundo bajo 5 minutos
   if (!fread_reset()) {
+    int t = info->reset_time;
     reset();
     transition_to(ST_NORMAL, info);
+    fclock_reset(t);
     return;
   }
 
@@ -462,13 +464,34 @@ void st_reset_quit(state_info * info) {
   //Serial.println(fclock_ticks());
 }
 
+void st_wait_init(state_info * info) {
+  info->reset_time = 3600;
+  fbuzz_off();
+  fclock_reset(info->reset_time);
+  fled_display_time(fclock_ticks());
+}
+
+void st_wait_handle(state_info * info) {
+  if (fread_reset()) {
+    reset();
+    transition_to(ST_NORMAL, info);
+    return;
+  }
+
+}
+
+void st_wait_quit(state_info * info) {
+  //Serial.println(fclock_ticks());
+}
+
 dispatch_info dispatch_info_table[] = {
   { ST_NORMAL, st_normal_init, st_normal_handle, st_normal_quit, (state_pre_check[]){check_reset, check_alarm, check_bang, check_disarm, check_moved, check_cable, check_reset, NULL} },
   { ST_MOVED , st_moved_init, st_moved_handle, st_moved_quit, (state_pre_check[]){check_bang, check_disarm, check_cable, NULL} },
   { ST_CABLE , st_cable_init, st_cable_handle, st_cable_quit, (state_pre_check[]){check_bang, check_disarm, NULL} },
   { ST_DISARM , st_disarm_init, st_disarm_handle, st_disarm_quit, (state_pre_check[]){check_reset, NULL} },
   { ST_BANG , st_bang_init, st_bang_handle, st_bang_quit, (state_pre_check[]){check_reset, NULL} },
-  { ST_RESET , st_reset_init, st_reset_handle, st_reset_quit, (state_pre_check[]){NULL} }
+  { ST_RESET , st_reset_init, st_reset_handle, st_reset_quit, (state_pre_check[]){NULL} },
+  { ST_WAIT , st_wait_init, st_wait_handle, st_wait_quit, (state_pre_check[]){NULL} }
 };
 
 void transition_to(b_state state, state_info * info) {
@@ -521,8 +544,8 @@ void setup() {
   faccel_adjust();
 
   fclock_setup();
-
-  st_normal_init(&info);
+  transition_to(ST_WAIT, &info);
+  //st_wait_init(&info);
 }
 
 void loop2() {
@@ -531,7 +554,11 @@ void loop2() {
 }
 
 void loop() {
-  handle_radio();
+  if(handle_radio() == 1) { 
+    reset();
+    transition_to(ST_NORMAL, &info);
+    return;
+  }
   for(int ii=0; dispatch_info_table[info.curr_state].pre_checks[ii]; ii++)
     if (dispatch_info_table[info.curr_state].pre_checks[ii](&info))
       return; //transision

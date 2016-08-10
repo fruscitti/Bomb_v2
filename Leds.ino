@@ -29,11 +29,11 @@ void fled_blink(int veces, int espera) {
 }
 
 void fbuzz_short() {
-  //tone(buzz_pin, 2000, 25);
+  tone(buzz_pin, 2000, 25);
 }
 
 void fbuzz_long() {
-  //tone(buzz_pin, 2200);
+  tone(buzz_pin, 2200);
 }
 
 void fbuzz_off() {
